@@ -5,7 +5,7 @@
 [![Laravel Version](https://img.shields.io/badge/Laravel-12.x-red.svg?style=flat-square)](https://laravel.com)
 [![License](https://img.shields.io/packagist/l/bugfix666/laravel-outbox.svg?style=flat-square)](https://packagist.org/packages/bugfix666/laravel-outbox)
 [![PHP](https://img.shields.io/badge/PHP-8.4+-777BB4?logo=php&logoColor=white)]()
-[![Tests](https://img.shields.io/github/actions/workflow/status/bugfix666/laravel-outbox/tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/bugfix666/laravel-outbox/actions)
+[![Run Tests](https://github.com/bugfix666/laravel-outbox/actions/workflows/tests.yml/badge.svg)](https://github.com/bugfix666/laravel-outbox/actions/workflows/tests.yml)
 [![Total Downloads](https://img.shields.io/packagist/dt/bugfix666/laravel-outbox.svg?style=flat-square)](https://packagist.org/packages/bugfix666/laravel-outbox)
 
 **Transactional Outbox pattern implementation for Laravel 12+ (PHP 8.4+).**  
