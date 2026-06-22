@@ -12,6 +12,50 @@ Guarantees atomicity and reliable event delivery in distributed systems, especia
 
 ---
 
+### 📊 Comparison with Existing Solutions
+
+There are several open‑source implementations of the Transactional Outbox pattern for Laravel. Here’s how **laravel-outbox** compares to them:
+
+| Feature | **This Package** | [webrek/laravel-outbox](https://github.com/webrek/laravel-outbox) | [GaiPalyan/laravel-outbox](https://github.com/GaiPalyan/laravel-outbox) | [Dnakitare/laravel-outbox](https://github.com/Dnakitare/laravel-outbox) |
+| :--- | :---: | :---: | :---: | :---: |
+| **PHP Version** | **8.4+** | 8.1+ | 8.1+ | 8.2+ |
+| **Laravel Version** | **12+** | 10+ | 10+ | 10 – 12 |
+| **PHP 8.4 Features** (typed properties, readonly, attributes) | ✅ Full | ❌ | ❌ | ❌ |
+| **Production‑ready** | ✅ Yes | ✅ Yes | ✅ Yes | ⚠️ Beta (0.1.0-beta1) |
+| **Strict Typing** | ✅ Yes | — | — | — |
+| **Unit & Feature Tests** | ✅ 15 tests | ❌ | ❌ | ✅ (limited) |
+| **Dead Letter Queue (DLQ)** | ✅ Yes | ❌ | ❌ | ✅ Yes |
+| **Inbox Pattern** | ❌ (outbox only) | ❌ | ✅ | ❌ |
+| **Event / Job Interception** | ❌ (explicit control) | ❌ | ❌ | ✅ (auto‑intercepts) |
+| **Atomicity** | ✅ (single DB transaction) | ✅ | ✅ | ✅ |
+| **Custom Publishers** | ✅ (via contract) | ✅ | ✅ | — |
+| **Retry Logic** | ✅ (exponential backoff) | ✅ | ✅ | ✅ |
+| **Worker Locking** | ✅ (prevents parallel runs) | ✅ | ❌ | — |
+| **Cleanup Command** | ✅ (`outbox:cleanup`) | ✅ | ✅ | ✅ |
+| **Monitoring Events** | ✅ (`Processed` / `Failed`) | ✅ | ❌ | — |
+
+---
+
+### 🚀 Why This Package Stands Out
+
+1. **Cutting‑Edge Stack** – Built specifically for PHP 8.4+ and Laravel 12+, leveraging the latest language features for cleaner, safer, and more maintainable code.
+
+2. **Production‑Ready** – Unlike some alternatives that are still in beta, this package is fully tested (15+ unit and feature tests) and ready for mission‑critical applications.
+
+3. **Dead Letter Queue (DLQ)** – Failed messages after all retries are not lost. They remain in the outbox table for inspection and manual intervention – essential for fintech and reliability‑first systems.
+
+4. **Explicit Control, No Magic** – Unlike packages that automatically intercept all events/jobs, this package gives you full control over what and when to publish. No surprises, easier debugging, and predictable behavior.
+
+5. **Built‑in Monitoring** – The `OutboxMessageProcessed` and `OutboxMessageFailed` events allow seamless integration with logging, metrics (Prometheus, StatsD), and alerting.
+
+6. **Strict Typing & Modern Practices** – Readonly classes, typed properties, constructor property promotion, and console command attributes make the code self‑documenting and robust.
+
+---
+
+**If you need a reliable, modern, and transparent outbox implementation for your fintech or distributed system – this package is the best choice among all existing open‑source solutions.**
+
+---
+
 ## 📦 Features
 
 - ✅ **Atomic persistence** – business data + outbox record in a single DB transaction.
