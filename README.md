@@ -3,7 +3,8 @@
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/bugfix666/laravel-outbox.svg?style=flat-square)](https://packagist.org/packages/bugfix666/laravel-outbox)
 [![PHP Version](https://img.shields.io/packagist/php-v/bugfix666/laravel-outbox.svg?style=flat-square)](https://packagist.org/packages/bugfix666/laravel-outbox)
 [![Laravel Version](https://img.shields.io/badge/Laravel-12.x-red.svg?style=flat-square)](https://laravel.com)
-[![License](https://img.shields.io/github/license/bugfix666/laravel-outbox.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![License](https://img.shields.io/packagist/l/bugfix666/laravel-outbox.svg?style=flat-square)](https://packagist.org/packages/bugfix666/laravel-outbox)
+[![PHP](https://img.shields.io/badge/PHP-8.4+-777BB4?logo=php&logoColor=white)]()
 [![Tests](https://img.shields.io/github/actions/workflow/status/bugfix666/laravel-outbox/tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/bugfix666/laravel-outbox/actions)
 [![Total Downloads](https://img.shields.io/packagist/dt/bugfix666/laravel-outbox.svg?style=flat-square)](https://packagist.org/packages/bugfix666/laravel-outbox)
 
