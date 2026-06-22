@@ -1,7 +1,7 @@
 {
   "name": "bugfix666/laravel-outbox",
   "description": "Transactional Outbox pattern for Laravel",
-  "license": "MIT",
+  "license": "GPL-3.0-only",
   "authors": [
     {
       "name": "bugfix666",
