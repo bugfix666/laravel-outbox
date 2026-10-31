@@ -4,347 +4,304 @@
 [![PHP Version](https://img.shields.io/packagist/php-v/bugfix666/laravel-outbox.svg?style=flat-square)](https://packagist.org/packages/bugfix666/laravel-outbox)
 [![Laravel Version](https://img.shields.io/badge/Laravel-12.x-red.svg?style=flat-square)](https://laravel.com)
 [![License](https://img.shields.io/packagist/l/bugfix666/laravel-outbox.svg?style=flat-square)](https://packagist.org/packages/bugfix666/laravel-outbox)
-[![PHP](https://img.shields.io/badge/PHP-8.4+-777BB4?logo=php&logoColor=white)]()
 [![Run Tests](https://github.com/bugfix666/laravel-outbox/actions/workflows/tests.yml/badge.svg)](https://github.com/bugfix666/laravel-outbox/actions/workflows/tests.yml)
-[![Total Downloads](https://img.shields.io/packagist/dt/bugfix666/laravel-outbox.svg?style=flat-square)](https://packagist.org/packages/bugfix666/laravel-outbox)
 
-**Transactional Outbox pattern implementation for Laravel 12+ (PHP 8.4+).**  
-Guarantees atomicity and reliable event delivery in distributed systems, especially fintech, e‑commerce, and microservices.
+**Transactional Outbox pattern implementation for Laravel 12+ and PHP 8.4+.**
 
----
+The package stores outgoing messages in the same database transaction as your business changes, then publishes them asynchronously through a configurable publisher.
 
-### 📊 Comparison with Existing Solutions
+> **Delivery semantics:** the package provides at-least-once publication, not exactly-once delivery. A process can crash after a broker accepts a message but before the outbox row is marked as processed. Consumers must be idempotent.
 
-There are several open‑source implementations of the Transactional Outbox pattern for Laravel. Here’s how **laravel-outbox** compares to them:
+## Requirements
 
-| Feature | **This Package** | [webrek/laravel-outbox](https://github.com/webrek/laravel-outbox) | [GaiPalyan/laravel-outbox](https://github.com/GaiPalyan/laravel-outbox) | [Dnakitare/laravel-outbox](https://github.com/Dnakitare/laravel-outbox) |
-| :--- | :---: | :---: | :---: | :---: |
-| **PHP Version** | **8.4+** | 8.1+ | 8.1+ | 8.2+ |
-| **Laravel Version** | **12+** | 10+ | 10+ | 10 – 12 |
-| **PHP 8.4 Features** (typed properties, readonly, attributes) | ✅ Full | ❌ | ❌ | ❌ |
-| **Production‑ready** | ✅ Yes | ✅ Yes | ✅ Yes | ⚠️ Beta (0.1.0-beta1) |
-| **Strict Typing** | ✅ Yes | — | — | — |
-| **Unit & Feature Tests** | ✅ 15 tests | ❌ | ❌ | ✅ (limited) |
-| **Dead Letter Queue (DLQ)** | ✅ Yes | ❌ | ❌ | ✅ Yes |
-| **Inbox Pattern** | ❌ (outbox only) | ❌ | ✅ | ❌ |
-| **Event / Job Interception** | ❌ (explicit control) | ❌ | ❌ | ✅ (auto‑intercepts) |
-| **Atomicity** | ✅ (single DB transaction) | ✅ | ✅ | ✅ |
-| **Custom Publishers** | ✅ (via contract) | ✅ | ✅ | — |
-| **Retry Logic** | ✅ (exponential backoff) | ✅ | ✅ | ✅ |
-| **Worker Locking** | ✅ (prevents parallel runs) | ✅ | ❌ | — |
-| **Cleanup Command** | ✅ (`outbox:cleanup`) | ✅ | ✅ | ✅ |
-| **Monitoring Events** | ✅ (`Processed` / `Failed`) | ✅ | ❌ | — |
+- PHP 8.4+
+- Laravel 12+
+- A transactional database supported by Laravel
+- A cache store supporting atomic locks for the processor command (for example Redis or the database cache store)
 
----
+For concurrent production workers, use a database engine with reliable transactional row updates, such as PostgreSQL or MySQL/InnoDB. SQLite is useful for local development and tests, but is not a recommended high-concurrency outbox backend.
 
-### 🚀 Why This Package Stands Out
-
-1. **Cutting‑Edge Stack** – Built specifically for PHP 8.4+ and Laravel 12+, leveraging the latest language features for cleaner, safer, and more maintainable code.
-
-2. **Production‑Ready** – Unlike some alternatives that are still in beta, this package is fully tested (15+ unit and feature tests) and ready for mission‑critical applications.
-
-3. **Dead Letter Queue (DLQ)** – Failed messages after all retries are not lost. They remain in the outbox table for inspection and manual intervention – essential for fintech and reliability‑first systems.
-
-4. **Explicit Control, No Magic** – Unlike packages that automatically intercept all events/jobs, this package gives you full control over what and when to publish. No surprises, easier debugging, and predictable behavior.
-
-5. **Built‑in Monitoring** – The `OutboxMessageProcessed` and `OutboxMessageFailed` events allow seamless integration with logging, metrics (Prometheus, StatsD), and alerting.
-
-6. **Strict Typing & Modern Practices** – Readonly classes, typed properties, constructor property promotion, and console command attributes make the code self‑documenting and robust.
-
----
-
-**If you need a reliable, modern, and transparent outbox implementation for your fintech or distributed system – this package is the best choice among all existing open‑source solutions.**
-
----
-
-## 📦 Features
-
-- ✅ **Atomic persistence** – business data + outbox record in a single DB transaction.
-- ✅ **Reliable background processing** – worker with locking, batch processing, and retries.
-- ✅ **Flexible publishers** – log, queue, or your own (Kafka, RabbitMQ, SNS, etc.).
-- ✅ **Built‑in retry logic** – exponential backoff (configurable attempts & delay).
-- ✅ **Monitoring** – events for processed/failed messages; easy to integrate with logging or metrics.
-- ✅ **Cleanup** – automated purging of old processed messages.
-- ✅ **Modern PHP 8.4+** – typed properties, readonly classes, enums, constructor promotion.
-- ✅ **Laravel 12+ ready** – uses new attribute‑based console commands.
-
----
-
-## 🔧 Requirements
-
-- PHP 8.4 or higher
-- Laravel 12.0 or higher
-- Database that supports transactions (MySQL, PostgreSQL, SQLite, etc.)
-
----
-
-## 📥 Installation
+## Installation
 
 ```bash
 composer require bugfix666/laravel-outbox
-```
 
----
-
-## 🚀 Setup
-
-Publish the configuration and migration files:
-
-```bash
 php artisan vendor:publish --tag=outbox-config
 php artisan vendor:publish --tag=outbox-migrations
-```
-
-Run the migration to create the `outbox_messages` table:
-
-```bash
 php artisan migrate
 ```
 
----
+The package migrations create `outbox_messages` and add delivery-state columns (`failed_at`, `last_error`, `locked_at`, and `lock_token`). If you have already published and run the original migration, make sure the new additive migration is also published before running `php artisan migrate`.
 
-## ⚙️ Configuration
+## Configuration
 
-The config file `config/outbox.php` allows you to tailor the package to your needs:
+The published `config/outbox.php` file contains the following settings:
 
 ```php
 return [
-    'table'      => env('OUTBOX_TABLE', 'outbox_messages'),
-    'connection' => env('OUTBOX_DB_CONNECTION', env('DB_CONNECTION', 'mysql')),
+    'table' => env('OUTBOX_TABLE', 'outbox_messages'),
+    'connection' => env('OUTBOX_DB_CONNECTION', env('DB_CONNECTION')),
 
-    // Your custom publisher class (must implement OutboxPublisher)
-    'publisher'  => env('OUTBOX_PUBLISHER', Bugfix666\LaravelOutbox\Publishers\LogPublisher::class),
+    // LogPublisher is for local development. Configure a real publisher in production.
+    'publisher' => env('OUTBOX_PUBLISHER', \Bugfix666\LaravelOutbox\Publishers\LogPublisher::class),
 
     'worker' => [
-        'batch_size'   => env('OUTBOX_BATCH_SIZE', 100),
-        'lock_timeout' => env('OUTBOX_LOCK_TIMEOUT', 10), // seconds
-        'lock_store'   => env('OUTBOX_LOCK_STORE', 'cache'), // cache, redis, etc.
+        'batch_size' => 100,
+        'lock_timeout' => 900,
+        'lock_store' => 'database',
+        'message_lock_timeout' => 300,
     ],
 
     'cleanup' => [
-        'days' => env('OUTBOX_CLEANUP_DAYS', 7),
+        'days' => 7,
     ],
 
     'retry' => [
-        'max_attempts'   => env('OUTBOX_MAX_ATTEMPTS', 5),
-        'delay_seconds'  => env('OUTBOX_RETRY_DELAY', 60), // seconds between attempts
+        'max_attempts' => 5,
+        'delay_seconds' => 60,
+        'max_delay_seconds' => 3600,
+        'multiplier' => 2,
     ],
 ];
 ```
 
-Set your preferred publisher in `.env`:
+Environment variables:
 
-```env
-OUTBOX_PUBLISHER=App\Publishers\KafkaPublisher
-OUTBOX_BATCH_SIZE=50
-OUTBOX_MAX_ATTEMPTS=3
+```dotenv
+OUTBOX_PUBLISHER=App\Outbox\RabbitMqPublisher
+OUTBOX_BATCH_SIZE=100
+OUTBOX_LOCK_TIMEOUT=900
+OUTBOX_MESSAGE_LOCK_TIMEOUT=300
+OUTBOX_LOCK_STORE=redis
+OUTBOX_MAX_ATTEMPTS=5
+OUTBOX_RETRY_DELAY=60
+OUTBOX_RETRY_MAX_DELAY=3600
+OUTBOX_RETRY_MULTIPLIER=2
+OUTBOX_CLEANUP_DAYS=7
 ```
 
----
+`lock_timeout` is the lifetime of the cache lock that prevents overlapping processor commands. `message_lock_timeout` is the database lease for an individual message. Set the message lease longer than the maximum expected duration of a single publisher call. Expired leases can be reclaimed after a worker crash.
 
-## 💡 Basic Usage
+The model and migrations both respect `outbox.table` and `outbox.connection`.
 
-### 1. Store an outbox message inside a transaction
+## Store a message in the business transaction
+
+Always write the business change and the outbox message using the same database connection and transaction.
 
 ```php
 use Bugfix666\LaravelOutbox\Services\OutboxService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
-DB::transaction(function () use ($outboxService) {
-    // 1. Business logic (e.g., create a payment)
-    $payment = Payment::create([
-        'amount' => 1000,
-        'currency' => 'USD',
-        'status' => 'completed',
-    ]);
+final readonly class CreatePayment
+{
+    public function __construct(private OutboxService $outboxService)
+    {
+    }
 
-    // 2. Store the outbox message – guaranteed to be persisted atomically
-    $outboxService->store(
-        aggregateType: 'Payment',
-        aggregateId: (string) $payment->id,
-        eventType: 'payment.completed',
-        payload: [
-            'payment_id' => $payment->id,
-            'amount' => $payment->amount,
-            'user_id' => auth()->id(),
-        ]
-    );
-});
+    public function handle(PaymentData $data): Payment
+    {
+        $connectionName = config('outbox.connection') ?: config('database.default');
+
+        return DB::connection($connectionName)->transaction(function () use ($data, $connectionName): Payment {
+            // The business model must use the same connection as the outbox.
+            $payment = Payment::on($connectionName)->create([
+                'id' => (string) Str::uuid(),
+                'amount' => $data->amount,
+                'currency' => $data->currency,
+                'status' => 'pending',
+            ]);
+
+            $this->outboxService->store(
+                aggregateType: 'Payment',
+                aggregateId: (string) $payment->getKey(),
+                eventType: 'payment.requested',
+                payload: [
+                    'event_id' => (string) Str::uuid(),
+                    'payment_id' => (string) $payment->getKey(),
+                    'amount' => $payment->amount,
+                    'currency' => $payment->currency,
+                ],
+            );
+
+            return $payment;
+        });
+    }
+}
 ```
 
-### 2. Run the worker
+The `aggregate_id` column in the default migration is a UUID. If your aggregate uses another identifier format, customize the migration before running it.
 
-Start the outbox processor (should be supervised in production):
+The package's `OutboxService::store()` persists the message; it does not publish it immediately. The row is committed or rolled back together with the surrounding business transaction.
+
+## Run the processor
 
 ```bash
 php artisan outbox:process
-```
-
-You can override batch size on the fly:
-
-```bash
 php artisan outbox:process --batch-size=200
 ```
 
-### 3. Clean up old processed messages
-
-Schedule the cleanup command to run daily (in `routes/console.php`):
+Run this command under a process supervisor or schedule it:
 
 ```php
 use Illuminate\Support\Facades\Schedule;
 
-Schedule::command('outbox:cleanup')->daily();
+Schedule::command('outbox:process --batch-size=100')
+    ->everyMinute()
+    ->withoutOverlapping();
 ```
 
-Or run manually:
+The processor claims messages with a database lease and a unique lock token. If a worker dies, another run can reclaim the message after `message_lock_timeout`. The cache lock is an additional guard against overlapping processor commands; it does not replace the database claim.
 
-```bash
-php artisan outbox:cleanup --days=14
+## Publishers
+
+### Log publisher
+
+`LogPublisher` is the default so a fresh installation can be exercised without a broker. It logs and marks messages as published; it does **not** deliver them to another service. Do not use it when events must reach a real consumer.
+
+### Queue publisher
+
+The package includes `QueuePublisher`. It enqueues a package job, which dispatches the `OutboxEvent` Laravel event when the job runs.
+
+```dotenv
+OUTBOX_PUBLISHER=Bugfix666\LaravelOutbox\Publishers\QueuePublisher
 ```
 
----
-
-## 🔌 Custom Publisher
-
-By default, the package logs events. To send events to a real broker, create a class that implements `Bugfix666\LaravelOutbox\Contracts\OutboxPublisher`:
+You can listen for the event in your application:
 
 ```php
-namespace App\Publishers;
+use Bugfix666\LaravelOutbox\Events\OutboxEvent;
+
+final class HandlePaymentRequested
+{
+    public function handle(OutboxEvent $event): void
+    {
+        if ($event->eventType !== 'payment.requested') {
+            return;
+        }
+
+        // Handle the event. Make this handler idempotent.
+    }
+}
+```
+
+The queue publisher uses the `default` queue. To route these jobs to another queue, bind an instance with the desired queue name in an application service provider:
+
+```php
+use Bugfix666\LaravelOutbox\Contracts\OutboxPublisher;
+use Bugfix666\LaravelOutbox\Publishers\QueuePublisher;
+
+$this->app->bind(OutboxPublisher::class, fn () => new QueuePublisher('outbox-events'));
+```
+
+### Custom publisher
+
+Implement `OutboxPublisher` to publish to RabbitMQ, Kafka, SNS, or another broker:
+
+```php
+namespace App\Outbox;
 
 use Bugfix666\LaravelOutbox\Contracts\OutboxPublisher;
-use RdKafka\Producer;
+use RuntimeException;
 
-class KafkaPublisher implements OutboxPublisher
+final class RabbitMqPublisher implements OutboxPublisher
 {
-    public function __construct(private Producer $producer) {}
+    public function __construct(private BrokerClient $client)
+    {
+    }
 
     public function publish(string $eventType, array $payload, ?string $aggregateId = null): bool
     {
-        $topic = $this->producer->newTopic($eventType);
-        $topic->produce(RD_KAFKA_PARTITION_UA, 0, json_encode($payload));
-        $this->producer->flush(1000);
+        // Publish to the broker and wait for its publisher confirmation.
+        // Throw if the broker did not accept the message durably.
+        $accepted = $this->client->publish($eventType, $payload, $aggregateId);
+
+        if (!$accepted) {
+            throw new RuntimeException('The broker did not confirm publication.');
+        }
+
         return true;
     }
 }
 ```
 
-Then set `OUTBOX_PUBLISHER=App\Publishers\KafkaPublisher` in your `.env`.
+A publisher must return `true` only when the broker has accepted the message according to the durability guarantees required by your application. Returning `false` is treated as a failed attempt. Throwing an exception also schedules a retry.
 
-> **Tip:** For RabbitMQ, use `php-amqplib`; for AWS SNS, use the Laravel SNS facade.
+The built-in `KafkaPublisher` requires the `rdkafka` PHP extension and checks the producer flush result. It is not installed as a dependency automatically.
 
----
+## Retry and failed messages
 
-## 🧩 Monitoring and Events
+Failed publication attempts use exponential backoff:
 
-The package fires two events that you can listen to:
+`min(max_delay_seconds, delay_seconds * multiplier ^ (attempts - 1))`
 
-- `Bugfix666\LaravelOutbox\Events\OutboxMessageProcessed`
-- `Bugfix666\LaravelOutbox\Events\OutboxMessageFailed`
+When `max_attempts` is reached, the message receives `failed_at` and remains in the table for inspection. The most recent exception message is stored in `last_error`. Avoid putting secrets or sensitive payment data in exception messages.
 
-Example listener:
-
-```php
-use Bugfix666\LaravelOutbox\Events\OutboxMessageFailed;
-
-class LogOutboxFailure
-{
-    public function handle(OutboxMessageFailed $event): void
-    {
-        logger()->error('Outbox failure', [
-            'id' => $event->message->id,
-            'attempts' => $event->message->attempts,
-            'error' => $event->exception->getMessage(),
-        ]);
-    }
-}
-```
-
-Register your listener in `EventServiceProvider`.
-
----
-
-## 🔄 Retry Logic
-
-When publishing fails, the worker increments the `attempts` counter and sets `available_at` to `now() + delay_seconds`. The next run will only pick messages where `available_at` is in the past, giving the broker time to recover.
-
-After `max_attempts` failures, the message remains unprocessed but is considered failed – you can handle it manually or set up an alert.
-
----
-
-## 🧪 Testing
-
-The package is fully testable. You can mock the publisher and assert that messages are stored and processed correctly.
-
-Example test:
+Inspect failed messages:
 
 ```php
-public function test_message_is_stored(): void
-{
-    DB::transaction(function () {
-        $service = app(OutboxService::class);
-        $message = $service->store('User', '123', 'user.created', ['name' => 'John']);
-        $this->assertDatabaseHas('outbox_messages', ['id' => $message->id]);
-    });
-}
+use Bugfix666\LaravelOutbox\Enums\OutboxStatus;
+use Bugfix666\LaravelOutbox\Models\OutboxMessage;
+
+$failed = OutboxMessage::query()
+    ->whereNotNull('failed_at')
+    ->get();
+
+$status = $failed->first()?->getStatus(); // OutboxStatus::FAILED
 ```
 
----
+After investigating and correcting the underlying issue, manually retry a failed message:
 
-## 📊 Performance Considerations
-
-- **Indexes** – The migration includes indexes on `(processed_at, created_at)`, `aggregate_type/aggregate_id`, and `available_at` to keep queries fast.
-- **Batch size** – Tune `batch_size` according to your workload. Larger batches reduce DB round‑trips but increase memory usage.
-- **Partitioning** – For extremely high volume, consider table partitioning by `created_at` (e.g., daily) to keep the active set small.
-- **Locking** – The worker uses `FOR UPDATE` to prevent double‑processing. Ensure your database supports row‑level locking.
-
----
-
-## 🛠 Supervisor Configuration
-
-For production, keep the worker running with Supervisor:
-
-```ini
-[program:outbox-worker]
-command=php /path/to/your/project/artisan outbox:process
-directory=/path/to/your/project
-user=www-data
-autostart=true
-autorestart=true
-redirect_stderr=true
-stdout_logfile=/path/to/your/project/storage/logs/outbox-worker.log
+```bash
+php artisan outbox:retry <message-uuid>
 ```
 
----
+This resets its attempt counter and makes it immediately available. Use this deliberately: the consumer must be idempotent, especially if the previous delivery outcome was uncertain.
 
-## 📖 Full Documentation
+## Monitoring
 
-- [Transactional Outbox Pattern – Martin Fowler](https://martinfowler.com/eaaDev/Outbox.html)
-- [Laravel 12 Documentation](https://laravel.com/docs/12.x)
+The package dispatches:
 
----
+- `OutboxMessageProcessed` after a message is marked as processed.
+- `OutboxMessageFailed` after a publication attempt fails. This event fires for retryable attempts as well as final failures.
 
-## 🤝 Contributing
+The service also logs publication failures. Monitoring listeners are isolated so an exception in an alerting listener does not change the delivery state.
 
-1. Fork the repository.
-2. Create a feature branch (`git checkout -b feature/amazing-feature`).
-3. Commit your changes (`git commit -m 'Add some amazing feature'`).
-4. Push to the branch (`git push origin feature/amazing-feature`).
-5. Open a Pull Request.
+Useful production metrics include:
 
-Please ensure that your code passes the existing tests and is well‑documented.
+- Oldest pending message age.
+- Number of pending and failed messages.
+- Number of expired processing leases.
+- Publication attempt count and failure rate.
+- Time between business commit and successful publication.
 
----
+## Cleanup
 
-## 📝 License
+Only successfully processed messages are removed by cleanup. Failed messages remain available for inspection.
 
-This package is open‑source software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+php artisan outbox:cleanup --days=14
+```
 
----
+Schedule cleanup according to your retention and audit requirements. Do not delete outbox records before the downstream system's recovery and reconciliation window has elapsed.
 
-## 💬 Support
+## Delivery guarantees and consumer design
 
-For questions, bug reports, or feature requests, please [open an issue](https://github.com/bugfix666/laravel-outbox/issues) on GitHub.
+The outbox closes the dual-write gap between the business database transaction and recording the intent to publish. It cannot make a database and an external broker participate in one atomic transaction.
 
----
+A broker can accept a message and the processor can crash before setting `processed_at`. The message may then be published again. This is why the package uses at-least-once delivery semantics.
 
-**Happy coding, and may your events always be delivered! 🚀**
+Consumers should use a stable event ID or business reference and enforce deduplication with a database unique constraint. For financial operations, also use provider idempotency keys, ledger uniqueness constraints, and reconciliation for ambiguous external outcomes. Queue locks and unique jobs are not substitutes for business-level idempotency.
+
+## Tests
+
+```bash
+composer install
+vendor/bin/phpunit
+```
+
+The test suite uses Orchestra Testbench and SQLite in-memory for fast functional coverage. Run additional integration tests against the same database engine and cache store used in production, especially for concurrent workers and broker publisher confirmations.
+
+## License
+
+This package is licensed under [GNU General Public License v3.0 only](LICENSE), consistent with the `GPL-3.0-only` declaration in `composer.json`.

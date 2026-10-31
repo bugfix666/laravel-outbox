@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace Bugfix666\LaravelOutbox\Tests\Feature;
 
 use Bugfix666\LaravelOutbox\Contracts\OutboxPublisher;
+use Bugfix666\LaravelOutbox\Events\OutboxEvent;
 use Bugfix666\LaravelOutbox\Events\OutboxMessageFailed;
 use Bugfix666\LaravelOutbox\Events\OutboxMessageProcessed;
 use Bugfix666\LaravelOutbox\Models\OutboxMessage;
+use Bugfix666\LaravelOutbox\Jobs\DispatchOutboxEvent;
+use Bugfix666\LaravelOutbox\Publishers\QueuePublisher;
 use Bugfix666\LaravelOutbox\Services\OutboxService;
 use Bugfix666\LaravelOutbox\Tests\TestCase;
 use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 
 final class OutboxIntegrationTest extends TestCase
@@ -45,6 +49,38 @@ final class OutboxIntegrationTest extends TestCase
         $this->assertDatabaseMissing('outbox_messages', ['processed_at' => null]);
         Event::assertDispatched(OutboxMessageProcessed::class);
         Event::assertNotDispatched(OutboxMessageFailed::class);
+    }
+
+    public function testQueuePublisherUsesPackageJobInsteadOfApplicationJob(): void
+    {
+        Queue::fake();
+
+        $publisher = new QueuePublisher('outbox-events');
+        $result = $publisher->publish(
+            'payment.requested',
+            ['payment_id' => (string) Str::uuid()],
+            (string) Str::uuid(),
+        );
+
+        $this->assertTrue($result);
+        Queue::assertPushedOn('outbox-events', DispatchOutboxEvent::class);
+    }
+
+    public function testQueuedOutboxJobDispatchesOutboxEvent(): void
+    {
+        Event::fake();
+
+        $eventType = 'payment.requested';
+        $payload = ['payment_id' => (string) Str::uuid()];
+        $aggregateId = (string) Str::uuid();
+
+        (new DispatchOutboxEvent($eventType, $payload, $aggregateId))->handle();
+
+        Event::assertDispatched(OutboxEvent::class, function (OutboxEvent $event) use ($eventType, $payload, $aggregateId): bool {
+            return $event->eventType === $eventType
+                && $event->payload === $payload
+                && $event->aggregateId === $aggregateId;
+        });
     }
 
     public function testRetryFlowAfterFailure(): void

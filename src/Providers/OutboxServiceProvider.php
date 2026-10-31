@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Bugfix666\LaravelOutbox\Providers;
 
 use Bugfix666\LaravelOutbox\Console\Commands\CleanupOutboxCommand;
 use Bugfix666\LaravelOutbox\Console\Commands\ProcessOutboxCommand;
+use Bugfix666\LaravelOutbox\Console\Commands\RetryOutboxMessageCommand;
 use Bugfix666\LaravelOutbox\Contracts\OutboxPublisher;
 use Bugfix666\LaravelOutbox\Services\OutboxService;
 use Illuminate\Support\ServiceProvider;
@@ -41,6 +44,7 @@ final class OutboxServiceProvider extends ServiceProvider
             $this->commands([
                 ProcessOutboxCommand::class,
                 CleanupOutboxCommand::class,
+                RetryOutboxMessageCommand::class,
             ]);
         }
     }

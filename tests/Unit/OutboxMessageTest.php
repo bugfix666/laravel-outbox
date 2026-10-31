@@ -47,10 +47,53 @@ final class OutboxMessageTest extends TestCase
             'attempts' => 0,
         ]);
 
+        OutboxMessage::create([
+            'id' => (string) Str::uuid(),
+            'aggregate_type' => 'Payment',
+            'aggregate_id' => (string) Str::uuid(),
+            'event_type' => 'payment.failed',
+            'payload' => [],
+            'attempts' => 3,
+            'failed_at' => now(),
+        ]);
+
         $pendingMessages = OutboxMessage::pending()->get();
 
         $this->assertCount(1, $pendingMessages);
         $this->assertEquals($pending->id, $pendingMessages->first()->id);
+    }
+
+    public function testModelRespectsConfiguredTableName(): void
+    {
+        config()->set('outbox.table', 'custom_outbox_messages');
+        \Illuminate\Support\Facades\Schema::create('custom_outbox_messages', function (\Illuminate\Database\Schema\Blueprint $table): void {
+            $table->uuid('id')->primary();
+            $table->string('aggregate_type');
+            $table->uuid('aggregate_id');
+            $table->string('event_type');
+            $table->json('payload');
+            $table->timestamp('processed_at')->nullable();
+            $table->timestamp('created_at')->useCurrent();
+            $table->unsignedInteger('attempts')->default(0);
+            $table->timestamp('last_attempt_at')->nullable();
+            $table->timestamp('available_at')->nullable();
+            $table->timestamp('failed_at')->nullable();
+            $table->text('last_error')->nullable();
+            $table->timestamp('locked_at')->nullable();
+            $table->uuid('lock_token')->nullable();
+        });
+
+        $message = OutboxMessage::create([
+            'id' => (string) Str::uuid(),
+            'aggregate_type' => 'Payment',
+            'aggregate_id' => (string) Str::uuid(),
+            'event_type' => 'payment.created',
+            'payload' => [],
+            'attempts' => 0,
+        ]);
+
+        $this->assertDatabaseHas('custom_outbox_messages', ['id' => $message->id]);
+        config()->set('outbox.table', 'outbox_messages');
     }
 
     public function testMarkProcessedUpdatesTimestamp(): void
@@ -69,24 +112,20 @@ final class OutboxMessageTest extends TestCase
         $this->assertNotNull($message->fresh()->processed_at);
     }
 
-    public function testRecordAttemptIncrementsCounterAndSetsAvailableAt(): void
+    public function testGetStatusReturnsProcessingForAnActiveLease(): void
     {
         $message = OutboxMessage::create([
-            'id' => (string)Str::uuid(),
+            'id' => (string) Str::uuid(),
             'aggregate_type' => 'Payment',
-            'aggregate_id' => (string)Str::uuid(),
+            'aggregate_id' => (string) Str::uuid(),
             'event_type' => 'payment.created',
-            'payload' => ['amount' => 400],
-            'attempts' => 0,
+            'payload' => [],
+            'attempts' => 1,
+            'locked_at' => now(),
+            'lock_token' => (string) Str::uuid(),
         ]);
 
-        $message->recordAttempt();
-
-        $fresh = $message->fresh();
-        $this->assertEquals(1, $fresh->attempts);
-        $this->assertNotNull($fresh->last_attempt_at);
-        $this->assertNotNull($fresh->available_at);
-        $this->assertTrue($fresh->available_at->gt(now()));
+        $this->assertEquals(OutboxStatus::PROCESSING, $message->getStatus());
     }
 
     public function testGetStatusReturnsCorrectEnum(): void

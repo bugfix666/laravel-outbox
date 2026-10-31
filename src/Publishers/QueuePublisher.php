@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Bugfix666\LaravelOutbox\Publishers;
 
-use App\Jobs\DispatchOutboxEvent;
 use Bugfix666\LaravelOutbox\Contracts\OutboxPublisher;
+use Bugfix666\LaravelOutbox\Jobs\DispatchOutboxEvent;
 use Illuminate\Support\Facades\Queue;
 
 final readonly class QueuePublisher implements OutboxPublisher
@@ -14,7 +16,11 @@ final readonly class QueuePublisher implements OutboxPublisher
 
     public function publish(string $eventType, array $payload, ?string $aggregateId = null): bool
     {
-        Queue::pushOn($this->queue, new DispatchOutboxEvent($eventType, $payload));
-        return true;
+        $result = Queue::pushOn(
+            $this->queue,
+            new DispatchOutboxEvent($eventType, $payload, $aggregateId),
+        );
+
+        return $result !== false;
     }
 }

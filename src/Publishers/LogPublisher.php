@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Bugfix666\LaravelOutbox\Publishers;
 
 use Bugfix666\LaravelOutbox\Contracts\OutboxPublisher;
@@ -9,7 +11,7 @@ final readonly class LogPublisher implements OutboxPublisher
 {
     public function publish(string $eventType, array $payload, ?string $aggregateId = null): bool
     {
-        Log::info('[Outbox] Publishing event', [
+        Log::info('[Outbox] Event accepted by log publisher; no broker delivery is performed.', [
             'event_type' => $eventType,
             'aggregate_id' => $aggregateId,
             'payload' => $payload,

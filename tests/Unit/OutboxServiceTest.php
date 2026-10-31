@@ -7,6 +7,7 @@ namespace Bugfix666\LaravelOutbox\Tests\Unit;
 use Bugfix666\LaravelOutbox\Contracts\OutboxPublisher;
 use Bugfix666\LaravelOutbox\Events\OutboxMessageFailed;
 use Bugfix666\LaravelOutbox\Events\OutboxMessageProcessed;
+use Bugfix666\LaravelOutbox\Enums\OutboxStatus;
 use Bugfix666\LaravelOutbox\Models\OutboxMessage;
 use Bugfix666\LaravelOutbox\Services\OutboxService;
 use Bugfix666\LaravelOutbox\Tests\Publishers\FakePublisher;
@@ -111,6 +112,195 @@ final class OutboxServiceTest extends TestCase
 
         Event::assertDispatched(OutboxMessageFailed::class);
         Event::assertNotDispatched(OutboxMessageProcessed::class);
+    }
+
+
+    public function testPublisherReturningFalseIsTreatedAsFailure(): void
+    {
+        $falsePublisher = new class implements OutboxPublisher {
+            public function publish(string $eventType, array $payload, ?string $aggregateId = null): bool
+            {
+                return false;
+            }
+        };
+
+        $this->app->instance(OutboxPublisher::class, $falsePublisher);
+        $service = $this->app->make(OutboxService::class);
+
+        $message = OutboxMessage::create([
+            'id' => (string) Str::uuid(),
+            'aggregate_type' => 'Payment',
+            'aggregate_id' => (string) Str::uuid(),
+            'event_type' => 'payment.created',
+            'payload' => ['amount' => 100],
+            'attempts' => 0,
+        ]);
+
+        $this->assertSame(0, $service->processBatch(1));
+
+        $message->refresh();
+        $this->assertNull($message->processed_at);
+        $this->assertSame(1, $message->attempts);
+        $this->assertStringContainsString('Publisher returned false', (string) $message->last_error);
+    }
+
+    public function testMessageMovesToFailedStateAfterMaxAttempts(): void
+    {
+        config()->set('outbox.retry.max_attempts', 1);
+
+        $failingPublisher = new class implements OutboxPublisher {
+            public function publish(string $eventType, array $payload, ?string $aggregateId = null): bool
+            {
+                throw new Exception('Permanent broker failure');
+            }
+        };
+
+        $this->app->instance(OutboxPublisher::class, $failingPublisher);
+        $service = $this->app->make(OutboxService::class);
+
+        $message = OutboxMessage::create([
+            'id' => (string) Str::uuid(),
+            'aggregate_type' => 'Payment',
+            'aggregate_id' => (string) Str::uuid(),
+            'event_type' => 'payment.created',
+            'payload' => [],
+            'attempts' => 0,
+        ]);
+
+        $this->assertSame(0, $service->processBatch(1));
+
+        $message->refresh();
+        $this->assertNotNull($message->failed_at);
+        $this->assertNull($message->available_at);
+        $this->assertSame(OutboxStatus::FAILED, $message->getStatus());
+        $this->assertSame(0, OutboxMessage::pending()->count());
+    }
+
+    public function testBatchDoesNotRetrySameMessageTwiceWhenBackoffIsZero(): void
+    {
+        config()->set('outbox.retry.max_attempts', 3);
+        config()->set('outbox.retry.delay_seconds', 0);
+        config()->set('outbox.retry.max_delay_seconds', 0);
+
+        $failingPublisher = new class implements OutboxPublisher {
+            public function publish(string $eventType, array $payload, ?string $aggregateId = null): bool
+            {
+                throw new Exception('Broker unavailable');
+            }
+        };
+
+        $this->app->instance(OutboxPublisher::class, $failingPublisher);
+        $service = $this->app->make(OutboxService::class);
+
+        $message = OutboxMessage::create([
+            'id' => (string) Str::uuid(),
+            'aggregate_type' => 'Payment',
+            'aggregate_id' => (string) Str::uuid(),
+            'event_type' => 'payment.created',
+            'payload' => [],
+            'attempts' => 0,
+        ]);
+
+        $service->processBatch(10);
+
+        $message->refresh();
+        $this->assertSame(1, $message->attempts);
+        $this->assertNull($message->failed_at);
+    }
+
+    public function testExpiredLeaseOnFinalAttemptMovesMessageToFailedState(): void
+    {
+        config()->set('outbox.retry.max_attempts', 1);
+        config()->set('outbox.worker.message_lock_timeout', 60);
+
+        $message = OutboxMessage::create([
+            'id' => (string) Str::uuid(),
+            'aggregate_type' => 'Payment',
+            'aggregate_id' => (string) Str::uuid(),
+            'event_type' => 'payment.created',
+            'payload' => [],
+            'attempts' => 1,
+            'locked_at' => now()->subMinutes(2),
+            'lock_token' => (string) Str::uuid(),
+        ]);
+
+        $processed = $this->service->processBatch(1);
+
+        $message->refresh();
+        $this->assertSame(0, $processed);
+        $this->assertNotNull($message->failed_at);
+        $this->assertNull($message->locked_at);
+        $this->assertNull($message->lock_token);
+        $this->assertStringContainsString('lease expired', (string) $message->last_error);
+    }
+
+    public function testRetryFailedMessageResetsItToPending(): void
+    {
+        $message = OutboxMessage::create([
+            'id' => (string) Str::uuid(),
+            'aggregate_type' => 'Payment',
+            'aggregate_id' => (string) Str::uuid(),
+            'event_type' => 'payment.created',
+            'payload' => [],
+            'attempts' => 3,
+            'failed_at' => now(),
+            'last_error' => 'Broker unavailable',
+        ]);
+
+        $this->assertTrue($this->service->retryFailedMessage($message->id));
+
+        $message->refresh();
+        $this->assertNull($message->failed_at);
+        $this->assertNull($message->last_error);
+        $this->assertSame(0, $message->attempts);
+        $this->assertSame(OutboxStatus::PENDING, $message->getStatus());
+    }
+
+    public function testRetryDelayUsesExponentialBackoffAndCapsAtMaximum(): void
+    {
+        config()->set('outbox.retry.delay_seconds', 10);
+        config()->set('outbox.retry.max_delay_seconds', 25);
+        config()->set('outbox.retry.multiplier', 2);
+        config()->set('outbox.retry.max_attempts', 5);
+
+        $publisher = new class implements OutboxPublisher {
+            public function publish(string $eventType, array $payload, ?string $aggregateId = null): bool
+            {
+                throw new Exception('Broker unavailable');
+            }
+        };
+        $this->app->instance(OutboxPublisher::class, $publisher);
+        $service = $this->app->make(OutboxService::class);
+
+        $message = OutboxMessage::create([
+            'id' => (string) Str::uuid(),
+            'aggregate_type' => 'Payment',
+            'aggregate_id' => (string) Str::uuid(),
+            'event_type' => 'payment.created',
+            'payload' => [],
+            'attempts' => 0,
+        ]);
+
+        $now = \Illuminate\Support\Carbon::parse('2026-01-01 12:00:00');
+        $this->travelTo($now);
+        $service->processBatch(1);
+
+        $message->refresh();
+        $this->assertTrue($message->available_at->equalTo($now->copy()->addSeconds(10)));
+
+        $message->available_at = now()->subSecond();
+        $message->save();
+        $service->processBatch(1);
+
+        $message->refresh();
+        $this->assertTrue($message->available_at->equalTo($now->copy()->addSeconds(20)));
+
+        $message->available_at = now()->subSecond();
+        $message->save();
+        $service->processBatch(1);
+
+        $message->refresh();
+        $this->assertTrue($message->available_at->equalTo($now->copy()->addSeconds(25)));
     }
 
     public function testCleanupRemovesOldProcessedMessages(): void

@@ -1,10 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Bugfix666\LaravelOutbox\Exceptions;
 
-use Exception;
+use RuntimeException;
 
-class OutboxException extends Exception
+final class OutboxException extends RuntimeException
 {
-    // Custom exception for package-specific errors
 }

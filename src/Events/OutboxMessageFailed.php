@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Bugfix666\LaravelOutbox\Events;
 
 use Bugfix666\LaravelOutbox\Models\OutboxMessage;
@@ -12,8 +14,7 @@ final readonly class OutboxMessageFailed
 
     public function __construct(
         public OutboxMessage $message,
-        public Throwable     $exception,
-    )
-    {
+        public Throwable $exception,
+    ) {
     }
 }

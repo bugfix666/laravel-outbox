@@ -29,6 +29,7 @@ abstract class TestCase extends Orchestra
         ]);
 
         $app['config']->set('outbox.table', 'outbox_messages');
+        $app['config']->set('outbox.connection', 'testbench');
         $app['config']->set('outbox.worker.batch_size', 5);
         $app['config']->set('outbox.worker.lock_store', 'array');
         $app['config']->set('outbox.retry.max_attempts', 3);
